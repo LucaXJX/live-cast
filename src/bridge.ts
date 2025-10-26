@@ -34,6 +34,10 @@ const udpSocket = dgram.createSocket("udp4");
 // 存儲連接的 WebSocket 客戶端
 let connectedClients = new Set();
 
+// 性能統計
+let frameCount = 0;
+let lastStatsTime = Date.now();
+
 // UDP 數據處理
 udpSocket.on("message", (msg, rinfo) => {
   // 將 UDP 數據轉發給所有連接的 WebSocket 客戶端
@@ -64,7 +68,23 @@ io.on("connection", (socket) => {
 
   // 處理瀏覽器分享的屏幕數據
   socket.on("screen-data", (data) => {
-    console.log("📤 收到屏幕數據:", data.stop ? "停止" : "幀數據");
+    // 只在開始/停止時輸出日誌
+    if (data.stop) {
+      console.log("📤 收到停止信號");
+    } else {
+      // 統計 FPS
+      frameCount++;
+      const now = Date.now();
+      if (now - lastStatsTime > 5000) {
+        console.log(
+          `📊 5秒內處理了 ${frameCount} 幀，平均 ${(frameCount / 5).toFixed(
+            1
+          )} FPS`
+        );
+        frameCount = 0;
+        lastStatsTime = now;
+      }
+    }
     // 轉發給所有觀看者（包括發送者自己）
     io.emit("frame", data);
   });

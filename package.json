@@ -4,9 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "ts-node src/server.ts",
+    "start": "ts-node src/server-alternative.ts",
+    "start:original": "ts-node src/server.ts",
     "bridge": "ts-node src/bridge.ts",
-    "test": "ts-node test-screen.ts",
     "build": "esbuild --bundle --platform=node src/client.ts --outfile=live-cast-client/src/bundle.js"
   },
   "keywords": [],

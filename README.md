@@ -20,7 +20,16 @@ npm install
 
 ### 啟動服務
 
-**方式一：UDP 廣播 + Web 橋接（推薦）**
+**方式一：Web 橋接（推薦，最簡單）**
+
+```bash
+# 啟動 Web 橋接服務器（包含 Web 客戶端）
+npm run bridge
+
+# 在瀏覽器訪問 http://localhost:3000/share.html 開始分享
+```
+
+**方式二：UDP 廣播 + Web 橋接**
 
 ```bash
 # 啟動 UDP 服務器（捕獲屏幕並廣播）
@@ -30,18 +39,19 @@ npm start
 npm run bridge
 ```
 
-**方式二：純 UDP（需要 Electron 客戶端）**
-
-```bash
-npm start  # 啟動 UDP 服務器
-cd live-cast-client
-npm start  # 啟動 Electron 客戶端
-```
-
 ### 訪問 Web 客戶端
 
-1. 打開瀏覽器訪問：`http://localhost:3000`
-2. 其他設備訪問：`http://[服務器IP]:3000`
+1. **本機訪問**：打開瀏覽器訪問 `http://localhost:3000`
+2. **其他設備訪問**：
+   - 確保設備連接在**同一個 WiFi** 網絡下
+   - 在啟動服務器時，會顯示局域網 IP 地址（例如：`http://192.168.1.100:3000`）
+   - 在其他設備瀏覽器輸入該 IP 地址和端口
+
+### ⚠️ 重要提示
+
+- Windows 防火牆可能阻止訪問，需要允許 Node.js 通過防火牆
+- 部分路由器可能阻止設備間通信，檢查路由器設置
+- 確保服務器啟動時顯示 "0.0.0.0" 而不是 "127.0.0.1"
 
 ## 📊 性能基準
 
@@ -58,22 +68,24 @@ npm start  # 啟動 Electron 客戶端
 
 ### 核心組件
 
-1. **UDP 服務器** (`src/server.ts` 或 `src/server-alternative.ts`)
+1. **UDP 服務器**（可選）
 
-   - 使用 `screenshot-desktop` 捕獲屏幕
+   - `src/server-alternative.ts` - 推薦，使用 `screenshot-desktop` 捕獲屏幕
+   - `src/server.ts` - 原始版本，需要 `robotjs`（編譯較複雜）
    - 使用 `jimp` 處理圖像
    - 使用 `zlib` 壓縮數據
    - UDP 廣播到局域網
 
-2. **Web 橋接** (`src/bridge.ts`)
+2. **Web 橋接** (`src/bridge.ts`)（核心服務器）
 
-   - 接收 UDP 數據
-   - 轉發到 WebSocket
-   - 提供 Web 客戶端
+   - 接收 UDP 數據或瀏覽器屏幕分享
+   - 轉發到 WebSocket 推流
+   - 提供 Web 客戶端服務
+   - 統一的數據中轉站
 
 3. **Web 客戶端** (`web-client/`)
    - `index.html` - 主觀看頁面
-   - `share.html` - 屏幕分享頁面
+   - `share.html` - 屏幕分享頁面（使用瀏覽器原生 API）
    - 實時接收和顯示屏幕
    - 全屏支持
    - 性能監控
@@ -120,9 +132,25 @@ live-cast/
 
 ### 常見問題
 
-1. **連接被拒絕**：檢查防火牆設置，確保端口 3000、8456、8457 已開放
-2. **畫面卡頓**：降低屏幕分辨率或降低幀率
-3. **無法看到分享**：確認在同一個 WiFi 網絡下，IP 地址正確
+1. **Cannot find module 'robotjs' 錯誤**
+
+   - **原因**：`robotjs` 需要編譯原生模組，Windows 環境複雜
+   - **解決**：直接使用 `npm run bridge` 啟動（推薦），無需安裝 `robotjs`
+   - 或使用 `npm start`（使用 `server-alternative.ts`）替代
+
+2. **連接被拒絕**
+
+   - 檢查防火牆設置，確保端口 3000、8456、8457 已開放
+   - Windows 防火牆：允許 Node.js 通過防火牆
+
+3. **畫面卡頓**
+
+   - 降低屏幕分辨率或降低幀率
+   - 檢查網絡帶寬
+
+4. **無法看到分享**
+   - 確認在同一個 WiFi 網絡下
+   - IP 地址正確
 
 ### 性能優化建議
 

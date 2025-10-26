@@ -57,27 +57,24 @@ async function captureAndSend() {
     // 使用 jimp 處理圖像
     const image = await jimp.read(img);
 
-    // 調整大小（可選）
-    // image.resize(w, h);
+    // 調整大小以控制數據大小（避免超過 UDP 限制）
+    image.resize(960, 540);
 
-    // 獲取像素數據
-    const buffer = Buffer.alloc(image.bitmap.width * image.bitmap.height * 3);
+    // 降低色深以減少數據量（使用更少的顏色）
+    image.dither565(); // 使用 16-bit 顏色（565 RGB）
 
-    image.scan(
-      0,
-      0,
-      image.bitmap.width,
-      image.bitmap.height,
-      function (x, y, idx) {
-        const pos = (y * image.bitmap.width + x) * 3;
-        buffer[pos] = this.bitmap.data[idx + 0]; // R
-        buffer[pos + 1] = this.bitmap.data[idx + 1]; // G
-        buffer[pos + 2] = this.bitmap.data[idx + 2]; // B
-      }
-    );
+    // 方法1: 直接使用 JPEG 編碼（更高效）
+    const jpegBuffer = await image.getBufferAsync(jimp.MIME_JPEG);
 
-    // 壓縮圖像數據
-    const compressed = zlib.gzipSync(buffer);
+    // 如果 JPEG 仍然太大，嘗試壓縮
+    let compressed = jpegBuffer;
+    if (jpegBuffer.length > 60000) {
+      // 進一步降低質量
+      const lowQualityBuffer = await image
+        .quality(40)
+        .getBufferAsync(jimp.MIME_JPEG);
+      compressed = lowQualityBuffer;
+    }
 
     // 創建 UDP 消息
     const message = Buffer.alloc(max_size);
@@ -96,25 +93,41 @@ async function captureAndSend() {
       message[offset++] = 128;
     }
 
+    // 檢查總大小是否超過 UDP 限制
+    const remaining = max_size - offset;
+
+    if (compressed.length > remaining) {
+      console.log(`\r⚠️  壓縮數據太大 (${compressed.length} bytes)，跳過此幀`);
+      setTimeout(captureAndSend, 200);
+      return;
+    }
+
     // 寫入壓縮後的圖像
     compressed.copy(message, offset);
     offset += compressed.length;
 
     const len = offset;
 
-    // 發送數據
-    socket.send(message, 0, len, clientPort, broadcastAddress, (err) => {
-      if (err) {
-        console.error("發送錯誤:", err);
-        return;
+    // 發送數據（使用 message.subarray(0, len) 確保只發送實際數據）
+    socket.send(
+      message.subarray(0, len),
+      clientPort,
+      broadcastAddress,
+      (err) => {
+        if (err) {
+          console.error("發送錯誤:", err);
+          return;
+        }
+
+        frame++;
+        process.stdout.write(
+          `\r  已發送 ${frame} 幀 | 大小: ${len} 字節 | 壓縮後: ${compressed.length} 字節`
+        );
+
+        // 繼續捕獲
+        setTimeout(captureAndSend, 200); // 5 FPS
       }
-
-      frame++;
-      process.stdout.write(`\r  已發送 ${frame} 幀 | 大小: ${len} 字節`);
-
-      // 繼續捕獲
-      setTimeout(captureAndSend, 200); // 5 FPS
-    });
+    );
   } catch (error) {
     console.error("捕獲屏幕時出錯:", error);
     setTimeout(captureAndSend, 200);

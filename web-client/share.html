@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live-Cast 分享屏幕</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 800px;
+        width: 100%;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      .header h1 {
+        font-size: 32px;
+        margin-bottom: 10px;
+      }
+
+      .content {
+        padding: 30px;
+      }
+
+      .screen-preview {
+        width: 100%;
+        max-width: 640px;
+        height: 360px;
+        background: #000;
+        border-radius: 10px;
+        margin: 0 auto 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+
+      .screen-preview video {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+
+      .screen-preview .placeholder {
+        color: white;
+        text-align: center;
+        font-size: 18px;
+      }
+
+      .controls {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .btn {
+        padding: 15px 30px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+
+      .btn-success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+      }
+
+      .btn-danger {
+        background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+        color: white;
+      }
+
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .status {
+        padding: 20px;
+        background: #f5f5f5;
+        border-radius: 10px;
+        text-align: center;
+      }
+
+      .status-item {
+        margin: 10px 0;
+        font-size: 16px;
+      }
+
+      .status-dot {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #ccc;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+
+      .status-dot.recording {
+        background: #eb3349;
+        animation: pulse 1.5s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.3;
+        }
+      }
+
+      .footer {
+        padding: 20px;
+        text-align: center;
+        background: #f8f9fa;
+        border-top: 1px solid #dee2e6;
+      }
+
+      .back-link {
+        display: inline-block;
+        margin-top: 20px;
+        color: white;
+        text-decoration: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.2);
+        transition: all 0.3s;
+      }
+
+      .back-link:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      .info-box {
+        background: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+      }
+
+      .info-box p {
+        margin: 5px 0;
+        font-size: 14px;
+        color: #1976d2;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>📺 Live-Cast 分享屏幕</h1>
+        <p>選擇要分享的窗口或屏幕</p>
+      </div>
+
+      <div class="content">
+        <div class="info-box">
+          <p><strong>💡 提示：</strong></p>
+          <p>• 點擊"開始分享"按鈕後，瀏覽器會要求您選擇要分享的內容</p>
+          <p>• 可以選擇整個屏幕、特定窗口或瀏覽器標籤頁</p>
+          <p>• 分享的內容會在局域網內廣播，其他用戶可以在觀看頁面看到</p>
+        </div>
+
+        <div class="screen-preview" id="preview">
+          <div class="placeholder">
+            <p>📺</p>
+            <p>點擊"開始分享"以預覽屏幕內容</p>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button class="btn btn-primary" id="startBtn">🎥 開始分享</button>
+
+          <button class="btn btn-success" id="sendBtn" disabled>
+            📤 發送到服務器
+          </button>
+
+          <button class="btn btn-danger" id="stopBtn" disabled>
+            ⏹️ 停止分享
+          </button>
+        </div>
+
+        <div class="status" id="status">
+          <div class="status-item">
+            <span class="status-dot"></span>
+            <span id="statusText">未連接</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <a href="/" class="back-link">← 返回觀看</a>
+      </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+      const preview = document.getElementById("preview");
+      const startBtn = document.getElementById("startBtn");
+      const sendBtn = document.getElementById("sendBtn");
+      const stopBtn = document.getElementById("stopBtn");
+      const statusText = document.getElementById("statusText");
+      const statusDot = document.querySelector(".status-dot");
+
+      let stream = null;
+      let video = null;
+      let canvas = null;
+      let ctx = null;
+      let isSharing = false;
+      let frameInterval = null;
+      let frameCount = 0;
+      let lastFpsTime = Date.now();
+
+      // 連接狀態
+      socket.on("connect", () => {
+        statusText.textContent = "已連接到服務器";
+        statusDot.style.background = "#4CAF50";
+      });
+
+      socket.on("disconnect", () => {
+        statusText.textContent = "連接斷開";
+        statusDot.style.background = "#ccc";
+      });
+
+      // 開始分享
+      startBtn.addEventListener("click", async () => {
+        try {
+          // 請求屏幕捕獲權限
+          stream = await navigator.mediaDevices.getDisplayMedia({
+            video: {
+              displaySurface: "any",
+              width: { ideal: 1920, max: 1920 },
+              height: { ideal: 1080, max: 1080 },
+              frameRate: { ideal: 30 },
+            },
+            audio: false,
+          });
+
+          // 創建 video 元素顯示預覽
+          video = document.createElement("video");
+          video.srcObject = stream;
+          video.autoplay = true;
+          video.playsinline = true;
+
+          preview.innerHTML = "";
+          preview.appendChild(video);
+
+          // 創建 canvas 用於截圖
+          canvas = document.createElement("canvas");
+          ctx = canvas.getContext("2d");
+
+          // 更新 UI
+          startBtn.disabled = true;
+          sendBtn.disabled = false;
+          stopBtn.disabled = false;
+          statusText.textContent = "已選擇屏幕";
+
+          // 監聽停止事件
+          stream.getVideoTracks()[0].addEventListener("ended", () => {
+            stopSharing();
+          });
+        } catch (error) {
+          console.error("獲取屏幕失敗:", error);
+          alert("無法獲取屏幕內容：" + error.message);
+        }
+      });
+
+      // 發送到服務器
+      sendBtn.addEventListener("click", () => {
+        if (!stream) return;
+
+        isSharing = true;
+        sendBtn.disabled = true;
+        startBtn.disabled = true;
+        statusText.textContent = "正在分享中...";
+        statusDot.classList.add("recording");
+
+        // 定期捕獲並發送幀
+        frameInterval = setInterval(() => {
+          captureAndSend();
+        }, 33); // ~30 FPS
+      });
+
+      // 捕獲並發送
+      function captureAndSend() {
+        if (!video || !isSharing) return;
+
+        try {
+          const startTime = performance.now();
+
+          // 設置 canvas 大小（限制分辨率以優化性能）
+          const maxWidth = 1280;
+          const maxHeight = 720;
+          const videoWidth = video.videoWidth || 1920;
+          const videoHeight = video.videoHeight || 1080;
+
+          // 按比例縮放
+          let canvasWidth = videoWidth;
+          let canvasHeight = videoHeight;
+
+          if (canvasWidth > maxWidth || canvasHeight > maxHeight) {
+            const ratio = Math.min(
+              maxWidth / canvasWidth,
+              maxHeight / canvasHeight
+            );
+            canvasWidth = Math.floor(canvasWidth * ratio);
+            canvasHeight = Math.floor(canvasHeight * ratio);
+          }
+
+          canvas.width = canvasWidth;
+          canvas.height = canvasHeight;
+
+          // 繪製視頻幀
+          ctx.drawImage(video, 0, 0, canvasWidth, canvasHeight);
+
+          // 轉換為 Base64（平衡質量和性能）
+          const dataURL = canvas.toDataURL("image/jpeg", 0.75);
+
+          // 統計 FPS
+          frameCount++;
+          const now = Date.now();
+          if (now - lastFpsTime > 1000) {
+            console.log(
+              `📊 FPS: ${frameCount}, 圖像大小: ${(
+                dataURL.length / 1024
+              ).toFixed(2)} KB`
+            );
+            frameCount = 0;
+            lastFpsTime = now;
+          }
+
+          // 發送到服務器
+          socket.emit("screen-data", {
+            image: dataURL,
+            timestamp: now,
+          });
+
+          const endTime = performance.now();
+          console.log(`⏱️ 處理時間: ${(endTime - startTime).toFixed(2)}ms`);
+        } catch (error) {
+          console.error("捕獲幀失敗:", error);
+        }
+      }
+
+      // 停止分享
+      function stopSharing() {
+        isSharing = false;
+
+        // 清除定時器
+        if (frameInterval) {
+          clearInterval(frameInterval);
+          frameInterval = null;
+        }
+
+        // 停止視頻軌道
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+          stream = null;
+        }
+
+        // 更新 UI
+        preview.innerHTML = `
+        <div class="placeholder">
+          <p>📺</p>
+          <p>點擊"開始分享"以預覽屏幕內容</p>
+        </div>
+      `;
+
+        startBtn.disabled = false;
+        sendBtn.disabled = true;
+        stopBtn.disabled = true;
+        statusText.textContent = "已停止";
+        statusDot.classList.remove("recording");
+
+        // 通知服務器停止發送
+        socket.emit("screen-data", { stop: true });
+      }
+
+      stopBtn.addEventListener("click", stopSharing);
+
+      // 頁面關閉時停止分享
+      window.addEventListener("beforeunload", () => {
+        if (isSharing) {
+          socket.emit("screen-data", { stop: true });
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -4,3 +4,11 @@ live-cast-client/src/bundle.js
 screenshots
 tsconfig.tsbuildinfo
 .env
+.DS_Store
+*.log
+dist
+build
+*.png
+!web-client/img/*.png
+/test
+/docs
